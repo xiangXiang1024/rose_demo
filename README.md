@@ -1,2 +1,2 @@
-# rose_demo
-a demo to use rose compiler
+# rose demo
+This is a demo to use rose compiler
