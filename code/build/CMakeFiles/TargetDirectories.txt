@@ -1,0 +1,7 @@
+/home/xiang/桌面/paper/hello/build/CMakeFiles/install/strip.dir
+/home/xiang/桌面/paper/hello/build/CMakeFiles/edit_cache.dir
+/home/xiang/桌面/paper/hello/build/CMakeFiles/hello.dir
+/home/xiang/桌面/paper/hello/build/CMakeFiles/rebuild_cache.dir
+/home/xiang/桌面/paper/hello/build/CMakeFiles/list_install_components.dir
+/home/xiang/桌面/paper/hello/build/CMakeFiles/install/local.dir
+/home/xiang/桌面/paper/hello/build/CMakeFiles/install.dir
