@@ -32,6 +32,7 @@ class State{
 	    bool in_if;
 	    vector<int> end_if_line;    // line of }
 	    vector<int> exit_if_line;
+	    vector<int> careless_lines;
         
         State(const string path, int start, int end, vector<Variable> params, Variable result, SgStatementPtrList& statement_ptrs);
         

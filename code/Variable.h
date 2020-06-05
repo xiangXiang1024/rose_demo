@@ -21,7 +21,7 @@ class Variable {
         }
 
         void renew_statement(Variable v) {
-            //cout << "renew " << var_name << "    " << v.var_name << endl;
+            ////cout << "renew " << var_name << "    " << v.var_name << endl;
             
             string v_name = v.var_name;
             string v_statement = "(" + v.var_statement + ")";
@@ -31,12 +31,12 @@ class Variable {
             bool is_first_time = true;
             while((pos = var_statement.find(v_name)) != string::npos) {
                 
-                //cout << "find " << v_name << " pos: " << pos << endl;
+                ////cout << "find " << v_name << " pos: " << pos << endl;
                 if(v.var_name != v.var_statement) {
                     var_statement.replace(pos, v_name.length(), v_statement);
                 }
-                //cout << var_statement << endl;
-                //cout << "pos: " << pos << "    pre_pos: " << pre_pos << endl;
+                ////cout << var_statement << endl;
+                ////cout << "pos: " << pos << "    pre_pos: " << pre_pos << endl;
                 if(pos < pre_pos+v_statement.length() && !is_first_time) {
                     break;
                 }else {

@@ -52,6 +52,8 @@ State::State(const string path, int start, int end, vector<Variable> params, Var
 	
 	in.close();
 	line_infos = lines;
+	
+	//cout << to_string();
 }
 
 State::State(const string path, int start, int end, vector<Variable> params, Variable result):
@@ -63,20 +65,6 @@ State::State(const string path, int start, int end, vector<Variable> params, Var
     next_statement_ptr = 0;
     is_end = false;
 }
-
-/*
-State::State(const State& s) {
-    file_path = s.file_path;
-    start_pos = s.start_pos;
-    end_pos = s.end_pos;
-    param_list = s.param_list;
-    output = s.output;
-    statement_list = s.statement_list;
-    condition = s.condition;
-    line_ptr = s.line_ptr;
-	line_infos = s.line_infos;
-    statement_ptr = s.statement_ptr;
-}*/
 
 void State::get_next_ptr(string statement_type) {
     if("SgReturnStmt" == statement_type) {
@@ -99,7 +87,7 @@ void State::get_next_ptr(string statement_type) {
             next_line_ptr++;
         }
         
-        cout << to_string();
+        //cout << to_string();
         
         return;
     }
@@ -108,13 +96,22 @@ void State::get_next_ptr(string statement_type) {
     next_statement_ptr++;
 }
 
+bool has_io(string line) {
+    vector<string> ios{"cin", "cout", "printf", "scanf", "cerr", "clog", "getchar", "putchar"};
+    for(string io : ios) {
+        if(line.find(io) != line.npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 string State::next() {
-    cout << "state next" << endl;
+    //cout << "state next" << endl;
     
     line_ptr = next_line_ptr;
     statement_ptr = next_statement_ptr;
     
-    // do something
     string line = line_infos[line_ptr];
     SgStatement* statement = statement_list[statement_ptr];
     string statement_type = statement -> class_name();
@@ -123,6 +120,14 @@ string State::next() {
     }else if("SgVariableDeclaration" == statement_type) {// declare
         solve_declaration(line);
     }else if("SgExprStatement" == statement_type) {// expr
+        
+        // todo
+        if(has_io(line)) {
+            careless_lines.push_back(line_ptr+start_pos);
+            get_next_ptr(statement_type);
+            return "";
+        }
+        
         solve_expr(line);
     }else if("SgIfStmt" == statement_type) {// if
         //solve_if(line, statement);
@@ -131,7 +136,7 @@ string State::next() {
     
     get_next_ptr(statement_type);
     
-    cout << "has get next ptr" << endl;
+    //cout << "has get next ptr" << endl;
     
     //cout << to_string();
     return "";
@@ -177,7 +182,7 @@ Variable parse_declaration(string declaration) {
 }
 
 void State::solve_declaration(string line) {
-    cout << "solve_declaration" << endl;
+    //cout << "solve_declaration" << endl;
     
     Variable v = parse_declaration(line);
     //cout << "get variable: " << v.output_info() << endl;
@@ -187,7 +192,7 @@ void State::solve_declaration(string line) {
 }
 
 void State::parse_expr(string expr) {
-    cout << "parse_expr" << endl;
+    //cout << "parse_expr" << endl;
     expr = remove_blank(expr);
     //cout << "line: " << expr << endl;
     
@@ -200,7 +205,7 @@ void State::parse_expr(string expr) {
     int i = 0;
     for(i = 0 ; i < param_list.size() ; i++) {
         if(param_list[i].var_name == var_name) {
-           // cout << "find " << var_name << "   i = " << i << endl;
+           // //cout << "find " << var_name << "   i = " << i << endl;
             break;
         }
     }
@@ -221,7 +226,7 @@ void State::parse_expr(string expr) {
 }
 
 void State::solve_expr(string line) {
-    cout << "solve_expr" << endl;
+    //cout << "solve_expr" << endl;
     
     parse_expr(line);
     
@@ -230,7 +235,7 @@ void State::solve_expr(string line) {
 }
 
 void State::solve_return() {
-    cout << "solve_return" << endl;
+    //cout << "solve_return" << endl;
     
     for(Variable v : param_list) {
         if(v.var_name == output.var_name) {
@@ -242,21 +247,21 @@ void State::solve_return() {
 }
 
 void State::solve_if(string line, SgStatement* statement) {
-    cout << "solve_if" << endl;
+    //cout << "solve_if" << endl;
     SgIfStmt* if_statement = dynamic_cast<SgIfStmt*>(statement);
     SgStatement* conditional_statement = if_statement->get_conditional();
     SgScopeStatement* scope = conditional_statement->get_scope();
     vector<SgNode*> node_list = scope->get_traversalSuccessorContainer();
-    cout << "sgnodes: " << endl;
+    //cout << "sgnodes: " << endl;
     for(SgNode* n : node_list) {
         string class_name = n -> class_name();
-        cout << class_name << endl;
+        //cout << class_name << endl;
         if("SgExprStatement" == class_name) {
             
         }else if("SgBasicBlock" == class_name) {
             vector<SgNode*> nodes = n->get_traversalSuccessorContainer();
             for(SgNode* n2 : nodes) {
-                cout << "    " << n2->class_name() << endl;
+                //cout << "    " << n2->class_name() << endl;
             }
         }
     }
@@ -275,7 +280,7 @@ int count(string s, char ch) {
 }
 
 void State::set_end_if_line(bool has_false) {
-    cout << "set_end_if_line" << endl;
+    //cout << "set_end_if_line" << endl;
     
     int else_line = line_ptr;
     if(has_false) {
@@ -312,7 +317,7 @@ void State::set_end_if_line(bool has_false) {
 }
 
 void State::false_path_set_ptr() {
-    cout << "false_path_set_ptr" << endl;
+    //cout << "false_path_set_ptr" << endl;
     
     int else_line = line_ptr;
     for( ; else_line < line_infos.size() ; else_line++) {
@@ -326,7 +331,7 @@ void State::false_path_set_ptr() {
         }
     }
     
-    cout << "next_line_ptr: " << next_line_ptr << endl;
+    //cout << "next_line_ptr: " << next_line_ptr << endl;
     
     /*int left_count = 0, right_count = 0;
     if(line_infos[else_line].find("}") != string::npos) {
@@ -337,7 +342,7 @@ void State::false_path_set_ptr() {
         right_count += count(line_infos[i], '}');
         if(left_count == right_count && left_count > 0) {
             end_if_line.push_back(i+1);
-            cout << "end_if_line: " << (i+1) << endl;
+            //cout << "end_if_line: " << (i+1) << endl;
             break;
         }
     }*/

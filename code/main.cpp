@@ -13,6 +13,23 @@
 //./hello /opt/analysis/code.cpp
 using namespace std;
 
+bool is_define_func(string path, string func) {
+    ifstream in;
+    string line;
+    string s = func + "(";
+	in.open(path);
+	
+	while(getline(in,line)) {
+        if(line.find(s) != line.npos) {
+            return true;
+        }
+    }
+	
+	in.close();
+    
+    return false;
+}
+
 vector<string> split_vector(string s, char split) {
 	vector<string> v;
     istringstream iss(s);
@@ -71,51 +88,6 @@ int get_start(string s) {
 	return atoi(start_str.c_str());;
 }
 
-/*string simplify_expr(string s) {
-    string::size_type pos = 0;
-    while((pos = s.find(';')) != string::npos) {
-        s = s.erase(pos, 1);
-    }
-    while((pos = s.find(' ')) != string::npos) {
-        s = s.erase(pos, 1);
-    }
-    while((pos = s.find('\t')) != string::npos) {
-        s = s.erase(pos, 1);
-    }
-
-    //for(string::iterator it = s.begin() ; it != s.end() ; it++) {
-    //    if (*it == ' ' || *it == '\t' || *it == ';') {
-    //        s.erase(it);
-    //    }
-    //}
-    return s;
-}*/
-/*
-string simplify(string s) {
-    while(s.find(' ') == 0 || s.find('\t') == 0) {
-        s = s.erase(0, 1);
-    }
-    string::size_type pos = 0;
-    while((pos = s.find(';')) != string::npos) {
-        s = s.erase(pos, 1);
-    }
-    return s;
-}
-
-/*Variable parse_declaration(string declaration) {
-    int equal_pos = declaration.find("=");
-    string declare = declaration.substr(0, equal_pos);
-    cout << "declare: " << declare << endl;
-
-    vector<string> declare_vector = split_vector(declare, ' ');
-    string type = declare_vector.front();
-    string name = declare_vector.back();
-    Variable v(name, type);
-    v.set_statement(declaration.substr(equal_pos+1));
-    cout << "parse_declaration: " << v.output_info() << endl;
-    return v;
-}*/
-
 string renew_condition(string condition, vector<Variable> param_list) {
     for(Variable v : param_list) {
         if(v.var_statement.empty()) {
@@ -166,6 +138,7 @@ State copy_state(State s) {
     state.in_if = s.in_if;
     state.end_if_line = s.end_if_line;
     state.exit_if_line = s.exit_if_line;
+    state.careless_lines = s.careless_lines;
             
     return state;
 }
@@ -186,35 +159,80 @@ vector<SgStatement*> insert_statements(vector<SgStatement*> statement_list, vect
     return statements;
 }
 
+string get_careless_info(vector<int> careless_lines) {
+    stringstream info;
+    
+    int start = -1;
+    int end = -1;
+    int pre = -1;
+    
+    for(int i = 0 ; i < careless_lines.size() ; i++) {
+        /*cout << endl;
+        cout << "i: " << i << endl;
+        cout << "careless_lines[i]: " << careless_lines[i] << endl;
+        cout << "start: " << start << endl;
+        cout << "end: " << end << endl;
+        cout << "pre: " << pre << endl;*/
+        
+        if(start < 0) {
+            start = careless_lines[i];
+        }else {
+            if(careless_lines[i] == pre+1) {
+                
+            }else {
+                end = pre;
+                if(start == end) {
+                    //cout << "start: " << start << endl;
+                    info << start << ";";
+                }else {
+                    //cout << "start: " << start << "  end: " << endl << endl;
+                    info << start << "-" << end << ";";
+                }
+                start = careless_lines[i];
+            }
+        }
+        pre = careless_lines[i];
+    }
+    
+    if(start == careless_lines.back()) {
+        info << start;
+    }else {
+        info << start << "-" << careless_lines.back();
+    }
+    
+    return info.str();
+}
+
 string symbolic_execution(string file_path, int start_pos, int end_pos, vector<Variable> param_list, Variable output, SgBasicBlock *func_body) {
     State state(file_path, start_pos, end_pos, param_list, output, func_body->get_statements());
-    cout << state.to_string();
+    //cout << state.to_string();
     
     vector<State> state_list;
     state_list.push_back(state);
     
     vector<string> condition_list;
     vector<string> statement_list;
+    vector<int> careless_lines;
     int i = 0;
     while(i < state_list.size()) {
         State s = state_list[i];
         while(!s.is_end) {
-            cout << "state " << i << endl;
+            //cout << "state " << i << endl;
             string r = s.next();
             if("if" == r) {
-                cout << "-----" << endl << "if statement" << endl;
+                //cout << "-----" << endl << "if statement" << endl;
                 //s = solve_if(s);
                 
                 // get condition
                 string if_line = s.line_infos[s.line_ptr];
-                cout << "if line:  " << if_line << endl;
+                //cout << "if line:  " << if_line << endl;
                 string condition = if_line.substr(2, if_line.length()-1);
                 string::size_type pos = 0;
                 if((pos = condition.find('{')) != string::npos) {
                     condition = condition.erase(pos, 1);
                 }
                 condition = renew_condition(condition, s.param_list);
-                cout << "condition:  " << condition << endl;
+                //cout << "condition:  " << condition << endl;
                 
                 State s2 = copy_state(s);
                 
@@ -231,7 +249,7 @@ string symbolic_execution(string file_path, int start_pos, int end_pos, vector<V
                 if(!node_list[2]) {
                     has_false = false;
                 }
-                cout << "has false path: " << has_false << endl;
+                //cout << "has false path: " << has_false << endl;
                 
                 SgNode* true_path = node_list[1];
                 vector<SgNode*> nodes = true_path->get_traversalSuccessorContainer();
@@ -262,100 +280,47 @@ string symbolic_execution(string file_path, int start_pos, int end_pos, vector<V
                     s2.next_statement_ptr++;
                 }
                 
-                
-                // set ptr
-                // set next statement ptr
-                //s2.next_statement_ptr++;
-                
-                // todo set next file ptr
-                
-                cout << "after if:" << endl;
-                cout << "s:" << endl << s.to_string();
-                cout << "s2:" << endl << s2.to_string();
-                
                 state_list.push_back(s2);
             }
         }
         
-        cout << "temp: " << s.output.output_info() << endl;
         condition_list.push_back(s.condition);
         statement_list.push_back(s.output.var_statement);
+        
+        for(int careless : s.careless_lines) {
+            if(!count(careless_lines.begin(), careless_lines.end(), careless)) {
+                //cout << "not find careless:" << careless << endl;
+                careless_lines.push_back(careless);
+                sort(careless_lines.begin(), careless_lines.end());
+            }
+        }
+        
+        //cout << s.to_string() << endl;
+        
         i++;
     }
     
     
-    cout << "final result: " << endl;
-    string final_result;
+    //cout << "final result: " << endl;
+    stringstream final_result;
     for(int i = 0 ; i < statement_list.size() ; i++) {
         string condition = condition_list[i];
         if(condition.empty()) {
             condition = "true";
         }
         string statement = statement_list[i];
-        final_result = final_result + "if(" + condition + ")" + statement + ";";
+        final_result << "if(" << condition << ")" << statement << ";";
     }
     
-    //state.parse();
-    
-    /*cout << "inputs:" << endl;
-    for(Variable v : param_list) {
-        cout << v.output_info() << "    ";
+    /*cout << "careless:" << endl;
+    for(int c : careless_lines) {
+        cout << c << "  ";
     }
     cout << endl;*/
-
-    /*cout << "==========" << endl;	
-    int num = end_pos - start_pos + 1;
-    ifstream in;
-	in.open(file_path);
     
-    int line = 0;
-    string line_info;
-    while(line < start_pos-1 && in.eof() == false) {
-        line++;
-        getline(in, line_info);
-    }
-
-    const SgStatementPtrList& statement_list = func_body->get_statements();
-    for(auto s : statement_list) {
-        getline(in, line_info);
-        line_info = simplify(line_info);
-        
-        SgStatement* statement = dynamic_cast<SgStatement*>(s);
-		cout << statement -> class_name() << endl;	
-        if("SgReturnStmt" == statement -> class_name()) {
-            cout << line_info << endl;
-            break;
-        }else if("SgVariableDeclaration" == statement -> class_name()) {
-            cout << line_info << endl;
-            Variable v = parse_declaration(line_info);
-            v.renew_statement(param_list);
-            cout << v.output_info() << endl;
-            param_list.push_back(v);
-        }else if("SgExprStatement" == statement -> class_name()) {
-            line_info = simplify_expr(line_info);
-            int equal_pos = line_info.find("=");
-            cout << line_info << endl;
-            cout << "equal pos: " << equal_pos << endl;
-        }
-        cout << endl;
-    }
-    
-    /*while(line < end_pos && in.eof() == false) {
-        line++;
-        getline(in, line_info);
-        if(line_info.find("return") != string::npos) {
-            break;
-        }
-
-        line_info = simplify(line_info);
-        cout << line_info << endl;
-    }*/
-
-	/*in.close();
-    cout << "==========" << endl;	*/
-	//return output.output_info();
+    final_result << endl << "careless:" << endl << get_careless_info(careless_lines) << endl;
 	
-	return final_result;
+	return final_result.str();
 }
 
 int get_end_pos(string file_path, int start_pos) {
@@ -387,7 +352,7 @@ int do_something(int argc, char *argv[]) {
 	// Generate the ROSE AST.
 	SgProject* project = frontend(argc,argv);
 	// get functions
-	//std::vector<SgNode*> functions = NodeQuery::querySubTree(project,V_SgFunctionDeclaration);
+	std::vector<SgNode*> declare_functions = NodeQuery::querySubTree(project,V_SgFunctionDeclaration);
 	std::vector<SgNode*> functions = NodeQuery::querySubTree(project,V_SgFunctionDefinition);
 	//cout << "get functions" << endl;
 	
@@ -398,57 +363,70 @@ int do_something(int argc, char *argv[]) {
 		ir_output << file->getFileName() << endl;
 		file_name = file->getFileName();
 	}
+	
+	//cout << "declare func num: " << declare_functions.size() << endl;
+	/*for(SgNode* f : declare_functions) {
+	    auto* func_declare = dynamic_cast<SgFunctionDeclaration *>(f);
+	    string func_declare_name = func_declare->get_name();
+	    cout << "declare function: " << func_declare_name << endl;
+	}*/
+	
+	//cout << "define func num: " << functions.size() << endl;
 
-	for (SgNode* f : functions) {
-		ir_output << endl;
-		cout << endl;
-		//auto* func = dynamic_cast<SgFunctionDeclaration *>(f);
-		auto* func = dynamic_cast<SgFunctionDefinition *>(f);
-		//cout << "get func" << endl;
-		string func_name = SgNodeHelper::getFunctionName(func);
-		//string func_name = func->get_name();
-		//cout << "get func_name" << endl;
-		cout << "function: " << func_name << endl;
+	for (int a = 0 ; a < functions.size() ; a++) {
+	    SgNode* f = functions[a];
+		//ir_output << endl;
+		//cout << endl;
+		//auto* func_declare = dynamic_cast<SgFunctionDeclaration *>(f);
 		
-		cout << "line: " << SgNodeHelper::sourceLineColumnToString(func, "-") << endl;
+		auto* func = dynamic_cast<SgFunctionDefinition *>(f);
+		string func_name = SgNodeHelper::getFunctionName(func);
+	    //cout << "function: " << func_name << endl;
+		
+		// todo judge is a function defined in cpp file
+		/*if(func_name != "func1") {
+		    continue;
+		}else {
+		    ir_output << endl;
+		    cout << "a: " << a << endl;
+		    cout << "function: " << func_name << endl;
+		}*/
+		
+		if(is_define_func(file_name, func_name)) {
+		    ir_output << endl;
+		    //cout << "a: " << a << endl;
+		    //cout << "function: " << func_name << endl;
+		}else {
+		    continue;
+		}
+		
+		//cout << "line: " << SgNodeHelper::sourceLineColumnToString(func, "-") << endl;
 		string line_str = SgNodeHelper::sourceLineColumnToString(func, "-");
 		int start_pos = get_start(line_str)+1;
 		
 		SgBasicBlock *func_body = func->get_body();
-		cout << "get func body" << endl;
+		//cout << "get func body" << endl;
 
 		const SgStatementPtrList& statement_list = func_body->get_statements();
-		/*for(auto s : statement_list) {
-			SgStatement* statement = dynamic_cast<SgStatement*>(s);
-			cout << statement -> class_name() << endl;
-			if("SgIfStmt" == statement -> class_name()) {
-				SgIfStmt* if_statement = dynamic_cast<SgIfStmt*>(statement);
-				cout << if_statement -> get_string_label()<< endl;
-			}/*else if("SgReturnStmt" == statement -> class_name()) {
-				SgReturnStmt* return_statement = dynamic_cast<SgReturnStmt*>(statement);
-				cout << return_statement->get_expression()->get_qualified_name_prefix().getString() << endl;
-				cout << return_statement->get_expression()->get_qualified_name_prefix().class_name() << endl;
-			}
-		}*/
-		//int end_pos = start_pos + statement_list.size()-1;
+
 		int end_pos = get_end_pos(file_name, start_pos);
 		ir_output << "line:" << endl << start_pos << "-" << end_pos << endl;
 		
 		vector<SgInitializedName*> vectors = SgNodeHelper::getFunctionDefinitionFormalParameterList(func);
 		//cout << "getFunctionDefinitionFormalParameterList" << endl;
-		cout << "parameters:" << endl;
+		//cout << "parameters:" << endl;
 		ir_output << "inputs:" << endl;
 		vector<Variable> input_list;
 		for(SgInitializedName* s : vectors) {
-			cout << s->get_name().getString() << "(";
+			//cout << s->get_name().getString() << "(";
 			SgType *type = s->get_type();
-			cout << get_type_name(type->get_mangled().getString()) << ")	";
+			//cout << get_type_name(type->get_mangled().getString()) << ")	";
 			
 			Variable input(s->get_name().getString(), get_type_name(type->get_mangled().getString()));
 			ir_output << input.to_string() << ";";
 			input_list.push_back(input);
 		}
-		cout << endl;
+		//cout << endl;
 		ir_output << endl;
 		
 		string output_name = get_output_name(file_name, end_pos);
@@ -456,24 +434,13 @@ int do_something(int argc, char *argv[]) {
 		ir_output << "outputs:" << endl;
 		Variable output(output_name, get_type_name(result->get_mangled().getString()));
 		string output_statement = symbolic_execution(file_name, start_pos, end_pos, input_list, output, func_body);// 符号执行
-		cout << "output_statement: " << output_statement << endl;
+		//cout << "output_statement: " << output_statement << endl;
 		ir_output << output.to_string() << ":" << output_statement << endl;
 		if(SgNodeHelper::isFloatingPointType(result)) {
-			cout << "return:  " << get_type_name(result->get_mangled().getString()) << endl;
+			//cout << "return:  " << get_type_name(result->get_mangled().getString()) << endl;
 		}else {
-			cout << "don't care" << endl;
-		}
-
-		ir_output << "careless:" << endl;
-		if(!SgNodeHelper::isFloatingPointType(result)) {
-			ir_output << start_pos << "-" << end_pos << endl;
-		}else {
-			ir_output << endl;
-		}
-		
-		
-		// 符号执行
-		//cout << symbolic_execution(file_name, start_pos, end_pos, input_list, output, func_body) << endl;
+			//cout << "don't care" << endl;
+		}		
 	}
 
 	string source_name = split(file_name, '/');
@@ -490,10 +457,10 @@ int do_something(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-    cout << "argc: " << argc << endl;
-    cout << "argv: " << endl;
+    //cout << "argc: " << argc << endl;
+    //cout << "argv: " << endl;
     for(int i = 0 ; i < argc ; i++) {
-        cout << argv[i] << endl;
+        //cout << argv[i] << endl;
     }
     
 	return do_something(argc, argv);
